@@ -229,7 +229,7 @@ usb_reset(void)
 
 // Main irq handler
 void
-USB_LP_CAN1_RX0_IRQHandler(void)
+USB_IRQHandler(void)
 {
     uint32_t istr = USB->ISTR;
     if (istr & USB_ISTR_CTR) {
@@ -280,6 +280,10 @@ usb_init(void)
     USB->DADDR = 0;
     USB->CNTR = USB_CNTR_RESETM;
     USB->ISTR = 0;
-    armcm_enable_irq(USB_LP_CAN1_RX0_IRQHandler, USB_LP_CAN1_RX0_IRQn, 1);
+#if CONFIG_MACH_STM32F103
+    armcm_enable_irq(USB_IRQHandler, USB_LP_IRQn, 1);
+#elif CONFIG_MACH_STM32F0
+    armcm_enable_irq(USB_IRQHandler, USB_IRQn, 1);
+#endif
 }
 DECL_INIT(usb_init);

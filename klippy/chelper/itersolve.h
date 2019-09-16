@@ -32,10 +32,13 @@ struct coord move_get_coord(struct move *m, double move_time);
 struct stepper_kinematics;
 typedef double (*sk_callback)(struct stepper_kinematics *sk, struct move *m
                               , double move_time);
+typedef int (*sk_flush_callback)(struct stepper_kinematics *sk
+                                 , double step_gen_time, double print_time);
 struct stepper_kinematics {
     double step_dist, commanded_pos;
     struct stepcompress *sc;
     sk_callback calc_position;
+    sk_flush_callback flush;
 };
 
 int32_t itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m);
@@ -45,5 +48,7 @@ double itersolve_calc_position_from_coord(struct stepper_kinematics *sk
                                           , double x, double y, double z);
 void itersolve_set_commanded_pos(struct stepper_kinematics *sk, double pos);
 double itersolve_get_commanded_pos(struct stepper_kinematics *sk);
+int itersolve_flush(struct stepper_kinematics *sk, double step_gen_time
+                    , double print_time);
 
 #endif // itersolve.h

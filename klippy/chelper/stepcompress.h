@@ -15,6 +15,9 @@ int stepcompress_queue_msg(struct stepcompress *sc, uint32_t *data, int len);
 double stepcompress_get_mcu_freq(struct stepcompress *sc);
 uint32_t stepcompress_get_oid(struct stepcompress *sc);
 int stepcompress_get_step_dir(struct stepcompress *sc);
+struct stepper_kinematics;
+void stepcompress_set_itersolve(struct stepcompress *sc
+                                , struct stepper_kinematics *sk);
 
 struct queue_append {
     struct stepcompress *sc;
@@ -34,6 +37,7 @@ struct steppersync *steppersync_alloc(
 void steppersync_free(struct steppersync *ss);
 void steppersync_set_time(struct steppersync *ss, double time_offset
                           , double mcu_freq);
-int steppersync_flush(struct steppersync *ss, uint64_t move_clock);
+int steppersync_flush(struct steppersync *ss, double step_gen_time
+                      , double print_time);
 
 #endif // stepcompress.h

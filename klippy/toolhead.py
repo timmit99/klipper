@@ -280,7 +280,7 @@ class ToolHead:
         self.print_time += movetime
         flush_to_time = self.print_time - self.move_flush_time
         for m in self.all_mcus:
-            m.flush_moves(flush_to_time)
+            m.flush_moves(flush_to_time, self.print_time)
     def _calc_print_time(self):
         curtime = self.reactor.monotonic()
         est_print_time = self.mcu.estimated_print_time(curtime)
@@ -318,7 +318,7 @@ class ToolHead:
         self.move_queue.set_flush_time(self.buffer_time_high)
         self.idle_flush_print_time = 0.
         for m in self.all_mcus:
-            m.flush_moves(self.print_time)
+            m.flush_moves(self.print_time, self.print_time)
     def _flush_lookahead(self):
         if self.special_queuing_state:
             return self._full_flush()

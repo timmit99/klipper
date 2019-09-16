@@ -236,3 +236,12 @@ itersolve_get_commanded_pos(struct stepper_kinematics *sk)
 {
     return sk->commanded_pos;
 }
+
+int
+itersolve_flush(struct stepper_kinematics *sk, double step_gen_time
+                , double print_time)
+{
+    if (sk->flush)
+        return sk->flush(sk, step_gen_time, print_time);
+    return 0;
+}

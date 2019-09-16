@@ -790,13 +790,11 @@ class MCU:
         return self._printer.get_start_args().get('debugoutput') is not None
     def is_shutdown(self):
         return self._is_shutdown
-    def flush_moves(self, print_time):
+    def flush_moves(self, step_gen_time, print_time):
         if self._steppersync is None:
             return
-        clock = self.print_time_to_clock(print_time)
-        if clock < 0:
-            return
-        ret = self._ffi_lib.steppersync_flush(self._steppersync, clock)
+        ret = self._ffi_lib.steppersync_flush(self._steppersync,
+                                              step_gen_time, print_time)
         if ret:
             raise error("Internal error in MCU '%s' stepcompress" % (
                 self._name,))

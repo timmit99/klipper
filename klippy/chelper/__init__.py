@@ -33,13 +33,16 @@ defs_stepcompress = """
     int stepcompress_reset(struct stepcompress *sc, uint64_t last_step_clock);
     int stepcompress_queue_msg(struct stepcompress *sc
         , uint32_t *data, int len);
+    void stepcompress_set_itersolve(struct stepcompress *sc
+        , struct stepper_kinematics *sk);
 
     struct steppersync *steppersync_alloc(struct serialqueue *sq
         , struct stepcompress **sc_list, int sc_num, int move_num);
     void steppersync_free(struct steppersync *ss);
     void steppersync_set_time(struct steppersync *ss
         , double time_offset, double mcu_freq);
-    int steppersync_flush(struct steppersync *ss, uint64_t move_clock);
+    int steppersync_flush(struct steppersync *ss, double step_gen_time
+        , double print_time);
 """
 
 defs_itersolve = """

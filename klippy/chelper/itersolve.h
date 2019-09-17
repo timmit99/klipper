@@ -2,6 +2,7 @@
 #define ITERSOLVE_H
 
 #include <stdint.h> // uint32_t
+#include "list.h" // list_node
 
 struct coord {
     double x, y, z;
@@ -12,6 +13,8 @@ struct move_accel {
 };
 
 struct move {
+    struct list_node node;
+
     double print_time, move_t;
     double accel_t, cruise_t;
     double cruise_start_d, decel_start_d;
@@ -38,6 +41,8 @@ struct stepper_kinematics {
     double step_dist, commanded_pos;
     struct stepcompress *sc;
     sk_callback calc_position;
+    struct list_head moves;
+    double last_print_time; // XXX
     sk_flush_callback flush;
 };
 

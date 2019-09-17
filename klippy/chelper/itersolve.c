@@ -11,6 +11,7 @@
 #include "itersolve.h" // struct coord
 #include "pyhelper.h" // errorf
 #include "stepcompress.h" // queue_append_start
+#include "trapq.h" // XXX
 
 
 /****************************************************************
@@ -229,13 +230,15 @@ itersolve_calc_position_from_coord(struct stepper_kinematics *sk
 {
     struct move m;
     memset(&m, 0, sizeof(m));
-    move_fill(&m, 0., 0., 1., 0., x, y, z, 0., 1., 0., 0., 1., 0.);
+    move_fill(&m, 0., 0., 0., 0., x, y, z, 0., 1., 0., 0., 0., 0.);
+    m.node.prev = m.node.next = &sk->moves.root; // XXX
     return sk->calc_position(sk, &m, 0.);
 }
 
 void __visible
 itersolve_set_commanded_pos(struct stepper_kinematics *sk, double pos)
 {
+    trapq_clear(sk); // XXX
     sk->commanded_pos = pos;
 }
 

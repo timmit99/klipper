@@ -106,8 +106,9 @@ class Move:
             self.toolhead.kin.move(next_move_time, self)
         if self.axes_d[3]:
             self.toolhead.extruder.move(next_move_time, self)
-        self.toolhead.update_move_time(
-            self.accel_t + self.cruise_t + self.decel_t)
+        move_t = self.accel_t + self.cruise_t + self.decel_t
+        self.toolhead.update_move_time(move_t)
+        self.toolhead.last_kinematics_time = next_move_time + move_t # XXX
 
 LOOKAHEAD_FLUSH_TIME = 0.250
 
@@ -196,7 +197,7 @@ class MoveQueue:
 STALL_TIME = 0.100
 
 DRIP_SEGMENT_TIME = 0.050
-DRIP_TIME = 0.150
+DRIP_TIME = 0.100
 class DripModeEndSignal(Exception):
     pass
 
@@ -234,8 +235,9 @@ class ToolHead:
             'buffer_time_high', 2.000, above=self.buffer_time_low)
         self.buffer_time_start = config.getfloat(
             'buffer_time_start', 0.250, above=0.)
-        self.move_flush_time = config.getfloat(
+        self.config_move_flush_time = config.getfloat(
             'move_flush_time', 0.050, above=0.)
+        self.move_flush_time = self.config_move_flush_time
         self.print_time = 0.
         self.special_queuing_state = "Flushed"
         self.need_check_stall = -1.
@@ -245,6 +247,10 @@ class ToolHead:
         self.idle_flush_print_time = 0.
         self.print_stall = 0
         self.drip_completion = None
+        # XXX - flush window
+        self.full_flush_delay = 0.
+        self.full_flush_times = []
+        self.last_full_flush_time = self.last_kinematics_time = 0.
         # Setup iterative solver
         ffi_main, ffi_lib = chelper.get_ffi()
         self.cmove = ffi_main.gc(ffi_lib.move_alloc(), ffi_lib.free)
@@ -284,9 +290,11 @@ class ToolHead:
     def _calc_print_time(self):
         curtime = self.reactor.monotonic()
         est_print_time = self.mcu.estimated_print_time(curtime)
-        if est_print_time + self.buffer_time_start > self.print_time:
-            self.print_time = est_print_time + self.buffer_time_start
-            self.last_print_start_time = self.print_time
+        min_print_time = est_print_time + self.buffer_time_start
+        post_flush_time = self.last_full_flush_time + self.full_flush_delay
+        min_print_time = max(min_print_time, post_flush_time)
+        if min_print_time > self.print_time:
+            self.print_time = self.last_print_start_time = min_print_time
             self.printer.send_event("toolhead:sync_print_time",
                                     curtime, est_print_time, self.print_time)
     def get_next_move_time(self):
@@ -299,7 +307,8 @@ class ToolHead:
                     raise DripModeEndSignal()
                 curtime = self.reactor.monotonic()
                 est_print_time = self.mcu.estimated_print_time(curtime)
-                wait_time = self.print_time - est_print_time - DRIP_TIME
+                wait_time = (self.print_time - est_print_time
+                             - DRIP_TIME - self.move_flush_time)
                 if wait_time <= 0. or self.mcu.is_fileoutput():
                     return self.print_time
                 self.drip_completion.wait(curtime + wait_time)
@@ -317,6 +326,7 @@ class ToolHead:
         self.reactor.update_timer(self.flush_timer, self.reactor.NEVER)
         self.move_queue.set_flush_time(self.buffer_time_high)
         self.idle_flush_print_time = 0.
+        self.last_full_flush_time = self.last_kinematics_time
         for m in self.all_mcus:
             m.flush_moves(self.print_time, self.print_time)
     def _flush_lookahead(self):
@@ -490,6 +500,18 @@ class ToolHead:
         self.move_queue.reset()
     def get_kinematics(self):
         return self.kin
+    def note_flush_delay(self, delay, old_delay=0.):
+        self._full_flush()
+        cur_delay = self.full_flush_delay
+        if old_delay:
+            self.full_flush_times.pop(self.full_flush_times.index(old_delay))
+        if delay:
+            self.full_flush_times.append(delay)
+        new_delay = max(self.full_flush_times + [0.])
+        self.full_flush_delay = new_delay
+        self.move_flush_time = self.config_move_flush_time + new_delay
+        if self.full_flush_delay < cur_delay:
+            self.dwell(cur_delay) # XXX - shouldn't add delays
     def get_max_velocity(self):
         return self.max_velocity, self.max_accel
     def get_max_axis_halt(self):

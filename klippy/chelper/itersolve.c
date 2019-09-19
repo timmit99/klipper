@@ -140,14 +140,15 @@ itersolve_find_step(struct stepper_kinematics *sk, struct move *m
 }
 
 // Generate step times for a stepper during a move
-int32_t __visible
-itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m)
+int32_t
+itersolve_gen_steps_range(struct stepper_kinematics *sk, struct move *m
+                          , double start, double end)
 {
     struct stepcompress *sc = sk->sc;
     sk_callback calc_position = sk->calc_position;
     double half_step = .5 * sk->step_dist;
     double mcu_freq = stepcompress_get_mcu_freq(sc);
-    struct timepos last = { 0., sk->commanded_pos }, low = last, high = last;
+    struct timepos last = { start, sk->commanded_pos }, low = last, high = last;
     double seek_time_delta = 0.000100;
     int sdir = stepcompress_get_step_dir(sc);
     struct queue_append qa = queue_append_start(sc, m->print_time, .5);
@@ -156,15 +157,15 @@ itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m)
         double dist = high.position - last.position;
         if (fabs(dist) < half_step) {
         seek_new_high_range:
-            if (high.time >= m->move_t)
+            if (high.time >= end)
                 // At end of move
                 break;
             // Need to increase next step search range
             low = high;
             high.time = last.time + seek_time_delta;
             seek_time_delta += seek_time_delta;
-            if (high.time > m->move_t)
-                high.time = m->move_t;
+            if (high.time > end)
+                high.time = end;
             high.position = calc_position(sk, m, high.time);
             continue;
         }
@@ -205,6 +206,13 @@ itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m)
     queue_append_finish(qa);
     sk->commanded_pos = last.position;
     return 0;
+}
+
+// XXX
+int32_t __visible
+itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m)
+{
+    return itersolve_gen_steps_range(sk, m, 0., m->move_t);
 }
 
 void __visible

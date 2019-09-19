@@ -41,6 +41,8 @@ struct stepper_kinematics {
     sk_flush_callback flush;
 };
 
+int32_t itersolve_gen_steps_range(struct stepper_kinematics *sk, struct move *m
+                                  , double start, double end);
 int32_t itersolve_gen_steps(struct stepper_kinematics *sk, struct move *m);
 void itersolve_set_stepcompress(struct stepper_kinematics *sk
                                 , struct stepcompress *sc, double step_dist);

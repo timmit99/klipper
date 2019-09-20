@@ -6,8 +6,6 @@
 import math, logging
 import stepper, homing, chelper
 
-EXTRUDE_DIFF_IGNORE = 1.02
-
 class PrinterExtruder:
     def __init__(self, config, extruder_num):
         self.printer = config.get_printer()
@@ -41,6 +39,8 @@ class PrinterExtruder:
         self.stepper.set_max_jerk(9999999.9, 9999999.9)
         self.max_e_dist = config.getfloat(
             'max_extrude_only_distance', 50., minval=0.)
+        self.instant_corner_v = config.getfloat(
+            'instantaneous_corner_velocity', 1., minval=0.)
         gcode_macro = self.printer.try_load_module(config, 'gcode_macro')
         self.activate_gcode = gcode_macro.load_template(
             config, 'activate_gcode', '')
@@ -102,45 +102,39 @@ class PrinterExtruder:
         self.stepper.motor_enable(print_time, 0)
         self.need_motor_enable = True
     def check_move(self, move):
-        move.extrude_r = move.axes_d[3] / move.move_d
+        extrude_r = move.axes_d[3] / move.move_d
         if not self.heater.can_extrude:
             raise homing.EndstopError(
                 "Extrude below minimum temp\n"
                 "See the 'min_extrude_temp' config option for details")
-        if not move.is_kinematic_move or move.extrude_r < 0.:
+        if not move.is_kinematic_move or extrude_r < 0.:
             # Extrude only move (or retraction move) - limit accel and velocity
             if abs(move.axes_d[3]) > self.max_e_dist:
                 raise homing.EndstopError(
                     "Extrude only move too long (%.3fmm vs %.3fmm)\n"
                     "See the 'max_extrude_only_distance' config"
                     " option for details" % (move.axes_d[3], self.max_e_dist))
-            inv_extrude_r = 1. / abs(move.extrude_r)
+            inv_extrude_r = 1. / abs(extrude_r)
             move.limit_speed(self.max_e_velocity * inv_extrude_r
                              , self.max_e_accel * inv_extrude_r)
-        elif move.extrude_r > self.max_extrude_ratio:
+        elif extrude_r > self.max_extrude_ratio:
             if move.axes_d[3] <= self.nozzle_diameter * self.max_extrude_ratio:
                 # Permit extrusion if amount extruded is tiny
                 return
             area = move.axes_d[3] * self.filament_area / move.move_d
             logging.debug("Overextrude: %s vs %s (area=%.3f dist=%.3f)",
-                          move.extrude_r, self.max_extrude_ratio,
+                          extrude_r, self.max_extrude_ratio,
                           area, move.move_d)
             raise homing.EndstopError(
                 "Move exceeds maximum extrusion (%.3fmm^2 vs %.3fmm^2)\n"
                 "See the 'max_extrude_cross_section' config option for details"
                 % (area, self.max_extrude_ratio * self.filament_area))
     def calc_junction(self, prev_move, move):
-        extrude = move.axes_d[3]
-        prev_extrude = prev_move.axes_d[3]
-        if extrude or prev_extrude:
-            if not extrude or not prev_extrude:
-                # Extrude move to non-extrude move - disable lookahead
-                return 0.
-            if ((move.extrude_r > prev_move.extrude_r * EXTRUDE_DIFF_IGNORE
-                 or prev_move.extrude_r > move.extrude_r * EXTRUDE_DIFF_IGNORE)
-                and abs(move.move_d * prev_move.extrude_r - extrude) >= .001):
-                # Extrude ratio between moves is too different
-                return 0.
+        extrude_r = move.axes_d[3] / move.move_d
+        prev_extrude_r = prev_move.axes_d[3] / prev_move.move_d
+        diff_r = extrude_r - prev_extrude_r
+        if diff_r:
+            return (self.instant_corner_v / abs(diff_r))**2
         return move.max_cruise_v2
     def lookahead(self, moves, flush_count, lazy):
         return flush_count # XXX - remove lookahead() callback

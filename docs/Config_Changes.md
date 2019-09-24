@@ -6,6 +6,9 @@ All dates in this document are approximate.
 
 # Changes
 
+20190924: The PE0/PE1 analog only pseudo-pins on the atmega168 and
+atmega328 have been renamed to PE2/PE3.
+
 20190918: The zhop option in [safe_z_homing] is always re-applied
 after Z axis homing completed. This might need users to update custom
 scripts based on this module.

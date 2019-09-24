@@ -35,7 +35,7 @@ static const uint8_t adc_pins[] PROGMEM = {
 
 // The atmega168/328 have two analog only pins
 #if CONFIG_MACH_atmega168 || CONFIG_MACH_atmega328 || CONFIG_MACH_atmega328p
-DECL_ENUMERATION_RANGE("pin", "PE0", GPIO('E', 0), 2);
+DECL_ENUMERATION_RANGE("pin", "PE2", GPIO('E', 2), 2);
 #endif
 
 enum { ADMUX_DEFAULT = 0x40 };

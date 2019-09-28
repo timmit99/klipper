@@ -4,7 +4,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import logging
-import stepper, homing
+import stepper, homing, chelper
 
 class CartKinematics:
     def __init__(self, toolhead, config):
@@ -13,7 +13,27 @@ class CartKinematics:
         self.rails = [stepper.LookupMultiRail(config.getsection('stepper_' + n))
                       for n in ['x', 'y', 'z']]
         for rail, axis in zip(self.rails, 'xyz'):
-            rail.setup_itersolve('cartesian_stepper_alloc', axis)
+            rail.setup_itersolve('cartesian_res_stepper_alloc', axis)
+        # XXX
+        ffi_main, ffi_lib = chelper.get_ffi()
+        self.cart_res_set_spring = ffi_lib.cart_res_set_spring
+        self.trapq_add_move = ffi_lib.trapq_add_move
+        stepper_x = self.rails[0].get_steppers()[0].mcu_stepper
+        stepper_y = self.rails[1].get_steppers()[0].mcu_stepper
+        stepper_z = self.rails[2].get_steppers()[0].mcu_stepper
+        self.sk_x = stepper_x._stepper_kinematics # XXX
+        self.sk_y = stepper_y._stepper_kinematics # XXX
+        self.sk_z = stepper_z._stepper_kinematics # XXX
+        self.sks = [self.sk_x, self.sk_y, self.sk_z]
+        ffi_lib.stepcompress_set_itersolve(stepper_x._stepqueue, self.sk_x)
+        ffi_lib.stepcompress_set_itersolve(stepper_y._stepqueue, self.sk_y)
+        ffi_lib.stepcompress_set_itersolve(stepper_z._stepqueue, self.sk_z)
+        self.spring_x = self.smooth_x = self.spring_y = self.smooth_y = 0.
+        spring_x = config.getfloat('spring_x', 0., minval=0.)
+        smooth_x = config.getfloat('spring_x_smooth_time', 0., minval=0.)
+        spring_y = config.getfloat('spring_y', 0., minval=0.)
+        smooth_y = config.getfloat('spring_y_smooth_time', 0., minval=0.)
+        self._set_spring(toolhead, spring_x, smooth_x, spring_y, smooth_y)
         # Setup boundary checks
         max_velocity, max_accel = toolhead.get_max_velocity()
         self.max_z_velocity = config.getfloat(
@@ -43,6 +63,10 @@ class CartKinematics:
             self.printer.lookup_object('gcode').register_command(
                 'SET_DUAL_CARRIAGE', self.cmd_SET_DUAL_CARRIAGE,
                 desc=self.cmd_SET_DUAL_CARRIAGE_help)
+        # Register set_spring command - XXX
+        gcode = self.printer.lookup_object('gcode')
+        gcode.register_command("SET_SPRING", self.cmd_SET_SPRING,
+                               desc=self.cmd_SET_SPRING_help)
     def get_steppers(self, flags=""):
         if flags == "Z":
             return self.rails[2].get_steppers()
@@ -123,7 +147,7 @@ class CartKinematics:
             self._check_motor_enable(print_time, move)
         for i, rail in enumerate(self.rails):
             if move.axes_d[i]:
-                rail.step_itersolve(move.cmove)
+                self.trapq_add_move(self.sks[i], move.cmove)
     def get_status(self):
         return {'homed_axes': "".join([a
                     for a, (l, h) in zip("XYZ", self.limits) if l <= h])
@@ -146,6 +170,41 @@ class CartKinematics:
         carriage = gcode.get_int('CARRIAGE', params, minval=0, maxval=1)
         self._activate_carriage(carriage)
         gcode.reset_last_position()
+    # XXX
+    def _set_spring(self, toolhead, spring_x, smooth_x, spring_y, smooth_y):
+        old_smooth_x = self.smooth_x
+        if not self.spring_x:
+            old_smooth_x = 0.
+        old_smooth_y = self.smooth_y
+        if not self.spring_y:
+            old_smooth_y = 0.
+        old_smooth_time = max(old_smooth_x, old_smooth_y)
+        new_smooth_x = smooth_x
+        if not spring_x:
+            new_smooth_x = 0.
+        new_smooth_y = smooth_y
+        if not spring_y:
+            new_smooth_y = 0.
+        new_smooth_time = max(new_smooth_x, new_smooth_y)
+        toolhead.note_flush_delay(new_smooth_time, old_delay=old_smooth_time)
+        self.cart_res_set_spring(self.sk_x, spring_x, new_smooth_x)
+        self.cart_res_set_spring(self.sk_y, spring_y, new_smooth_y)
+        self.spring_x = spring_x
+        self.smooth_x = smooth_x
+        self.spring_y = spring_y
+        self.smooth_y = smooth_y
+    cmd_SET_SPRING_help = "Set cartesian resonance parameters"
+    def cmd_SET_SPRING(self, params):
+        gcode = self.printer.lookup_object('gcode')
+        spring_x = gcode.get_float('SPRING_X', params, self.spring_x, minval=0.)
+        smooth_x = gcode.get_float('SMOOTH_X', params, self.smooth_x, minval=0.)
+        spring_y = gcode.get_float('SPRING_Y', params, self.spring_y, minval=0.)
+        smooth_y = gcode.get_float('SMOOTH_Y', params, self.smooth_y, minval=0.)
+        toolhead = self.printer.lookup_object("toolhead")
+        self._set_spring(toolhead, spring_x, smooth_x, spring_y, smooth_y)
+        gcode.respond_info("spring_x:%.6f smooth_x:%.6f"
+                           " spring_y:%.6f smooth_y:%.6f"
+                           % (spring_x, smooth_x, spring_y, smooth_y))
 
 def load_kinematics(toolhead, config):
     return CartKinematics(toolhead, config)

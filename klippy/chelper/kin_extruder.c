@@ -27,8 +27,12 @@ extruder_calc_position(struct stepper_kinematics *sk, struct move *m
     double base_pos = m->start_pos.x + dist;
     if (! es->smooth_time)
         return base_pos;
-    // Calculate average velocity over 'smooth_time' window
-    double pa_start_pos = m->start_pos.y + (m->axes_r.y ? dist : 0.);
+    // Calculate position 'smooth_time' in the past
+    double start_time = move_time - es->smooth_time;
+    struct move *sm = trapq_find_move(&es->sk, m, &start_time);
+    double start_dist = move_get_distance(sm, start_time);
+    double pa_start_pos = sm->start_pos.y + (sm->axes_r.y ? start_dist : 0.);
+    // Calculate position 'smooth_time' in the future
     double end_time = move_time + es->smooth_time;
     struct move *em = trapq_find_move(&es->sk, m, &end_time);
     double end_dist = move_get_distance(em, end_time);
@@ -81,7 +85,7 @@ extruder_set_pressure(struct stepper_kinematics *sk
         es->pressure_advance_factor = es->smooth_time = 0.;
         return;
     }
-    es->pressure_advance_factor = pressure_advance / smooth_time;
+    es->pressure_advance_factor = pressure_advance / (2. * smooth_time);
     es->smooth_time = smooth_time;
 }
 
@@ -94,7 +98,7 @@ extruder_flush(struct stepper_kinematics *sk
     double flush_time = print_time - es->smooth_time;
     if (flush_time < step_gen_time)
         flush_time = step_gen_time;
-    return trapq_flush(&es->sk, flush_time, 0., es->smooth_time);
+    return trapq_flush(&es->sk, flush_time, es->smooth_time, es->smooth_time);
 }
 
 // xxx - Need an extruder_stepper_free() function

@@ -51,7 +51,7 @@ cartesian_stepper_alloc(char axis)
 
 struct cart_res_stepper {
     struct stepper_kinematics sk;
-    double spring_advance_factor, smooth_time;
+    double spring_factor, half_smooth_time;
 };
 
 static double
@@ -61,20 +61,20 @@ res_x_calc_position(struct stepper_kinematics *sk, struct move *m
     struct cart_res_stepper *cs = container_of(sk, struct cart_res_stepper, sk);
     // Calculate nominal stepper position
     double base_pos = move_get_coord(m, move_time).x;
-    if (! cs->smooth_time)
+    if (! cs->half_smooth_time)
         return base_pos;
     // Calculate average velocity of 'smooth_time' window before position
-    double start_time = move_time - cs->smooth_time;
+    double start_time = move_time - cs->half_smooth_time;
     struct move *sm = trapq_find_move(&cs->sk, m, &start_time);
     double start_pos = move_get_coord(sm, start_time).x;
     double start_diff = base_pos - start_pos;
     // Calculate average velocity of 'smooth_time' window after position
-    double end_time = move_time + cs->smooth_time;
+    double end_time = move_time + cs->half_smooth_time;
     struct move *em = trapq_find_move(&cs->sk, m, &end_time);
     double end_pos = move_get_coord(em, end_time).x;
     double end_diff = end_pos - base_pos;
     // Add "spring factor" based on estimated acceleration
-    return base_pos + (end_diff - start_diff) * cs->spring_advance_factor;
+    return base_pos + (end_diff - start_diff) * cs->spring_factor;
 }
 
 static double
@@ -83,30 +83,30 @@ res_y_calc_position(struct stepper_kinematics *sk, struct move *m
 {
     struct cart_res_stepper *cs = container_of(sk, struct cart_res_stepper, sk);
     double base_pos = move_get_coord(m, move_time).y;
-    if (! cs->smooth_time)
+    if (! cs->half_smooth_time)
         return base_pos;
-    double start_time = move_time - cs->smooth_time;
+    double start_time = move_time - cs->half_smooth_time;
     struct move *sm = trapq_find_move(&cs->sk, m, &start_time);
     double start_pos = move_get_coord(sm, start_time).y;
     double start_diff = base_pos - start_pos;
-    double end_time = move_time + cs->smooth_time;
+    double end_time = move_time + cs->half_smooth_time;
     struct move *em = trapq_find_move(&cs->sk, m, &end_time);
     double end_pos = move_get_coord(em, end_time).y;
     double end_diff = end_pos - base_pos;
-    return base_pos + (end_diff - start_diff) * cs->spring_advance_factor;
+    return base_pos + (end_diff - start_diff) * cs->spring_factor;
 }
 
 void __visible
-cart_res_set_spring(struct stepper_kinematics *sk
-                    , double advance, double smooth_time)
+cart_set_smooth_velocity(struct stepper_kinematics *sk
+                         , double half_smooth_time, double spring_factor)
 {
     struct cart_res_stepper *cs = container_of(sk, struct cart_res_stepper, sk);
-    if (! smooth_time) {
-        cs->spring_advance_factor = cs->smooth_time = 0.;
+    if (! half_smooth_time) {
+        cs->spring_factor = cs->half_smooth_time = 0.;
         return;
     }
-    cs->spring_advance_factor = advance / (2. * smooth_time * smooth_time);
-    cs->smooth_time = smooth_time;
+    cs->spring_factor = spring_factor;
+    cs->half_smooth_time = half_smooth_time;
 }
 
 static int
@@ -114,10 +114,10 @@ cart_res_flush(struct stepper_kinematics *sk
                , double step_gen_time, double print_time)
 {
     struct cart_res_stepper *cs = container_of(sk, struct cart_res_stepper, sk);
-    double flush_time = print_time - cs->smooth_time;
+    double hst = cs->half_smooth_time, flush_time = print_time - hst;
     if (flush_time < step_gen_time)
         flush_time = step_gen_time;
-    return trapq_flush(&cs->sk, flush_time, cs->smooth_time, cs->smooth_time);
+    return trapq_flush(&cs->sk, flush_time, hst, hst);
 }
 
 struct stepper_kinematics * __visible

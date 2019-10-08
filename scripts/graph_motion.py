@@ -81,6 +81,11 @@ HALF_SMOOTH_T = .019 * .5
 #SPRING_FACTOR = ADVANCE / (2. * SMOOTH_T * SMOOTH_T)
 SPRING_FACTOR = 1. / 3.
 
+def calc_position_integral(t, positions):
+    start_index = time_to_index(t - HALF_SMOOTH_T) + 1
+    end_index = time_to_index(t + HALF_SMOOTH_T)
+    return sum(positions[start_index:end_index]) / (end_index - start_index)
+
 def calc_position_smooth(t, positions):
     start_pos = positions[time_to_index(t - HALF_SMOOTH_T)]
     end_pos = positions[time_to_index(t + HALF_SMOOTH_T)]
@@ -108,8 +113,9 @@ def calc_belt_spring2(t, positions):
 
 #gen_updated_position = calc_pressure_advance_old
 #gen_updated_position = calc_pressure_advance
+gen_updated_position = calc_position_integral
 #gen_updated_position = calc_position_smooth
-gen_updated_position = calc_belt_spring
+#gen_updated_position = calc_belt_spring
 #gen_updated_position = calc_belt_spring2
 
 def plot_motion():
@@ -130,14 +136,14 @@ def plot_motion():
     ax1.set_title("Motion")
     ax1.set_ylabel('Velocity (mm/s)')
     ax1.plot(upd_times, upd_velocities, 'r', label='New Velocity', alpha=0.8)
-    ax1.plot(times, velocities, 'g', label='Velocity', alpha=0.8)
+    ax1.plot(times, velocities, 'g', label='Nominal Velocity', alpha=0.8)
     fontP = matplotlib.font_manager.FontProperties()
     fontP.set_size('x-small')
     ax1.legend(loc='best', prop=fontP)
     ax1.grid(True)
     ax2.set_ylabel('Acceleration (mm/s^2)')
     ax2.plot(upd_times, upd_accels, 'r', label='New Accel', alpha=0.8)
-    ax2.plot(times, accels, 'g', label='Accel', alpha=0.8)
+    ax2.plot(times, accels, 'g', label='Nominal Accel', alpha=0.8)
     ax2.set_ylim([-3. * ACCEL, 3. * ACCEL])
     ax2.legend(loc='best', prop=fontP)
     ax2.grid(True)

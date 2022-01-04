@@ -114,7 +114,6 @@ class PrinterNeoPixel:
     def cmd_SET_LED(self, gcmd):
         # Parse parameters
         brightness = gcmd.get_float('BRIGHTNESS', 1, minval=0., maxval=1.)
-        
         red = brightness * gcmd.get_float('RED', 0., minval=0., maxval=1.)
         green = brightness * gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
         blue = brightness * gcmd.get_float('BLUE', 0., minval=0., maxval=1.)
@@ -123,9 +122,6 @@ class PrinterNeoPixel:
         transmit = gcmd.get_int('TRANSMIT', 1)
         sync = gcmd.get_int('SYNC', 1)
         # Update and transmit data
-        
-        
-        
         def reactor_bgfunc(print_time):
             with self.mutex:
                 self.update_color_data(red, green, blue, white, index)

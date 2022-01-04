@@ -33,12 +33,12 @@ class PrinterNeoPixel:
         # Initial color        
         self.brightness = config.getfloat('brightness', 1., minval=0., maxval=1.)
         self.color_data = bytearray(self.chain_count * elem_size)
-        red = self.brightness * config.getfloat('initial_RED', 0., minval=0., maxval=1.)
-        green = self.brightness * config.getfloat('initial_GREEN', 0., minval=0., maxval=1.)
-        blue = self.brightness * config.getfloat('initial_BLUE', 0., minval=0., maxval=1.)
+        red = config.getfloat('initial_RED', 0., minval=0., maxval=1.)
+        green = config.getfloat('initial_GREEN', 0., minval=0., maxval=1.)
+        blue = config.getfloat('initial_BLUE', 0., minval=0., maxval=1.)
         white = 0
         if elem_size == 4:
-            white = self.brightness * config.getfloat('initial_WHITE', 0., minval=0., maxval=1.)
+            white = config.getfloat('initial_WHITE', 0., minval=0., maxval=1.)
         self.update_color_data(red, green, blue, white)
         self.old_color_data = bytearray([d ^ 1 for d in self.color_data])
         # Register commands
@@ -60,10 +60,10 @@ class PrinterNeoPixel:
             "neopixel_send oid=%c", "neopixel_result oid=%c success=%c",
             oid=self.oid, cq=cmd_queue)
     def update_color_data(self, red, green, blue, white, index=None):
-        red = int(red * 255. + .5)
-        blue = int(blue * 255. + .5)
-        green = int(green * 255. + .5)
-        white = int(white * 255. + .5)
+        red = int((self.brightness * red) * 255. + .5)
+        blue = int((self.brightness * blue) * 255. + .5)
+        green = int((self.brightness * green) * 255. + .5)
+        white = int((self.brightness * white) * 255. + .5)
         if self.color_order == "GRB":
             color_data = [green, red, blue]
         elif self.color_order == "RGB":
@@ -114,10 +114,10 @@ class PrinterNeoPixel:
     cmd_SET_LED_help = "Set the color of an LED"
     def cmd_SET_LED(self, gcmd):
         # Parse parameters
-        red = self.brightness * gcmd.get_float('RED', 0., minval=0., maxval=1.)
-        green = self.brightness * gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
-        blue = self.brightness * gcmd.get_float('BLUE', 0., minval=0., maxval=1.)
-        white = self.brightness * gcmd.get_float('WHITE', 0., minval=0., maxval=1.)
+        red = gcmd.get_float('RED', 0., minval=0., maxval=1.)
+        green = gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
+        blue = gcmd.get_float('BLUE', 0., minval=0., maxval=1.)
+        white = gcmd.get_float('WHITE', 0., minval=0., maxval=1.)
         index = gcmd.get_int('INDEX', None, minval=1, maxval=self.chain_count)
         transmit = gcmd.get_int('TRANSMIT', 1)
         sync = gcmd.get_int('SYNC', 1)

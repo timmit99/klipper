@@ -113,7 +113,7 @@ class PrinterNeoPixel:
     cmd_SET_LED_help = "Set the color of an LED"
     def cmd_SET_LED(self, gcmd):
         # Parse parameters
-        brightness = gcmd.get_float('BRIGHTNESS', 1, minval=0., maxval=1.)
+        brightness = config.getfloat('brightness', 1., minval=0., maxval=1.)
         red = brightness * gcmd.get_float('RED', 0., minval=0., maxval=1.)
         green = brightness * gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
         blue = brightness * gcmd.get_float('BLUE', 0., minval=0., maxval=1.)

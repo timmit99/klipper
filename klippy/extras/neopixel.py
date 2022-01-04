@@ -60,10 +60,10 @@ class PrinterNeoPixel:
             "neopixel_send oid=%c", "neopixel_result oid=%c success=%c",
             oid=self.oid, cq=cmd_queue)
     def update_color_data(self, red, green, blue, white, index=None):
-        red = int((self.brightness * red) * 255. + .5)
-        blue = int((self.brightness * blue) * 255. + .5)
-        green = int((self.brightness * green) * 255. + .5)
-        white = int((self.brightness * white) * 255. + .5)
+        red = int(red * 255. + .5)
+        blue = int(blue * 255. + .5)
+        green = int(green * 255. + .5)
+        white = int(white * 255. + .5)
         if self.color_order == "GRB":
             color_data = [green, red, blue]
         elif self.color_order == "RGB":
@@ -72,6 +72,7 @@ class PrinterNeoPixel:
             color_data = [green, red, blue, white]
         else:
             color_data = [red, green, blue, white]
+        color_data = [int(i * self.brightness) for i in color_data]
         if index is None:
             self.color_data[:] = color_data * self.chain_count
         else:

@@ -31,14 +31,14 @@ class PrinterNeoPixel:
                                          maxval=MAX_MCU_SIZE//elem_size)
         self.neopixel_update_cmd = self.neopixel_send_cmd = None
         # Initial color        
-        brightness = config.getfloat('brightness', 1., minval=0., maxval=1.)
+        self.brightness = config.getfloat('brightness', 1., minval=0., maxval=1.)
         self.color_data = bytearray(self.chain_count * elem_size)
-        red = brightness * config.getfloat('initial_RED', 0., minval=0., maxval=1.)
-        green = brightness * config.getfloat('initial_GREEN', 0., minval=0., maxval=1.)
-        blue = brightness * config.getfloat('initial_BLUE', 0., minval=0., maxval=1.)
+        red = self.brightness * config.getfloat('initial_RED', 0., minval=0., maxval=1.)
+        green = self.brightness * config.getfloat('initial_GREEN', 0., minval=0., maxval=1.)
+        blue = self.brightness * config.getfloat('initial_BLUE', 0., minval=0., maxval=1.)
         white = 0
         if elem_size == 4:
-            white = brightness * config.getfloat('initial_WHITE', 0., minval=0., maxval=1.)
+            white = self.brightness * config.getfloat('initial_WHITE', 0., minval=0., maxval=1.)
         self.update_color_data(red, green, blue, white)
         self.old_color_data = bytearray([d ^ 1 for d in self.color_data])
         # Register commands
@@ -114,10 +114,10 @@ class PrinterNeoPixel:
     cmd_SET_LED_help = "Set the color of an LED"
     def cmd_SET_LED(self, gcmd):
         # Parse parameters
-        red = brightness * gcmd.get_float('RED', 0., minval=0., maxval=1.)
-        green = brightness * gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
-        blue = brightness * gcmd.get_float('BLUE', 0., minval=0., maxval=1.)
-        white = brightness * gcmd.get_float('WHITE', 0., minval=0., maxval=1.)
+        red = self.brightness * gcmd.get_float('RED', 0., minval=0., maxval=1.)
+        green = self.brightness * gcmd.get_float('GREEN', 0., minval=0., maxval=1.)
+        blue = self.brightness * gcmd.get_float('BLUE', 0., minval=0., maxval=1.)
+        white = self.brightness * gcmd.get_float('WHITE', 0., minval=0., maxval=1.)
         index = gcmd.get_int('INDEX', None, minval=1, maxval=self.chain_count)
         transmit = gcmd.get_int('TRANSMIT', 1)
         sync = gcmd.get_int('SYNC', 1)

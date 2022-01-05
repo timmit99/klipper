@@ -30,8 +30,8 @@ class PrinterNeoPixel:
         self.chain_count = config.getint('chain_count', 1, minval=1,
                                          maxval=MAX_MCU_SIZE//elem_size)
         self.neopixel_update_cmd = self.neopixel_send_cmd = None
-        # Initial color        
-        self.brightness = config.getfloat('brightness', 1., minval=0., maxval=1.)
+        # Initial color
+        self.brightness = config.getfloat('brightness',1., minval=0., maxval=1.)
         self.color_data = bytearray(self.chain_count * elem_size)
         red = config.getfloat('initial_RED', 0., minval=0., maxval=1.)
         green = config.getfloat('initial_GREEN', 0., minval=0., maxval=1.)
